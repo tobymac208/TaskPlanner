@@ -1,85 +1,91 @@
-document.addEventListener("DOMContentLoaded", function() {
-    const themeToggleButton = document.getElementById("theme-toggle");
-    const addTaskButton = document.getElementById("add-task");
-    const tasksContainer = document.getElementById("tasks");
-    const taskDateInput = document.getElementById("task-date");
-    const taskTimeInput = document.getElementById("task-time");
-    const taskTextInput = document.getElementById("task-text");
+class TaskManager {
+    constructor() {
+        this.tasks = []; // Initialize tasks as an array
+        this.initialize();
+    }
 
-    themeToggleButton.addEventListener("click", function() {
-        if (document.body.getAttribute("data-theme") === "dark") {
-            document.body.setAttribute("data-theme", "light");
+    initialize() {
+        this.loadTasks();
+        this.bindUIActions();
+    }
+
+    bindUIActions() {
+        document.getElementById("theme-toggle").addEventListener("click", () => this.toggleTheme());
+        document.getElementById("add-task").addEventListener("click", () => this.addNewTask());
+    }
+
+    loadTasks() {
+        const tasksFromStorage = JSON.parse(localStorage.getItem("tasks"));
+        // Ensure the loaded data is an array before assigning it to this.tasks
+        if (Array.isArray(tasksFromStorage)) {
+            this.tasks = tasksFromStorage;
         } else {
-            document.body.setAttribute("data-theme", "dark");
+            console.error("Loaded tasks is not an array.", tasksFromStorage);
         }
-    });
-
-    function saveTasksToLocalStorage(tasks) {
-        localStorage.setItem("tasks", JSON.stringify(tasks));
+        this.tasks.forEach(task => this.renderTask(task));
     }
 
-    function loadTasksFromLocalStorage() {
-        const tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-        tasks.forEach(task => addTaskToDOM(task));
+    saveTasks() {
+        localStorage.setItem("tasks", JSON.stringify(this.tasks));
     }
 
-    function addTaskToDOM(task) {
-        const taskElement = document.createElement("div");
-        taskElement.classList.add("task");
-        if (task.completed) {
-            taskElement.classList.add("completed");
-        }
-        taskElement.innerHTML = `<span>${task.date} ${task.time} - ${task.text}</span> <button class="delete">X</button>`;
-
-        taskElement.querySelector("span").addEventListener("click", function() {
-            task.completed = !task.completed;
-            updateTaskInLocalStorage(task);
-            taskElement.classList.toggle("completed");
-        });
-
-        taskElement.querySelector(".delete").addEventListener("click", function() {
-            taskElement.remove();
-            deleteTaskFromLocalStorage(task);
-        });
-
-        tasksContainer.appendChild(taskElement);
-	        }
-
-    function updateTaskInLocalStorage(updatedTask) {
-        let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-        const taskIndex = tasks.findIndex(task => task.date === updatedTask.date && task.time === updatedTask.time && task.text === updatedTask.text);
-        if (taskIndex > -1) {
-            tasks[taskIndex] = updatedTask;
-            saveTasksToLocalStorage(tasks);
-        }
-    }
-
-    function deleteTaskFromLocalStorage(taskToDelete) {
-        let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-        tasks = tasks.filter(task => task.date !== taskToDelete.date || task.time !== taskToDelete.time || task.text !== taskToDelete.text);
-        saveTasksToLocalStorage(tasks);
-    }
-
-    addTaskButton.addEventListener("click", function() {
-        const date = taskDateInput.value;
-        const time = taskTimeInput.value;
-        const text = taskTextInput.value;
+    addNewTask() {
+        const date = document.getElementById("task-date").value;
+        const time = document.getElementById("task-time").value;
+        const text = document.getElementById("task-text").value;
 
         if (date && time && text) {
             const task = { date, time, text, completed: false };
-            let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-            tasks.push(task);
-            saveTasksToLocalStorage(tasks);
-            addTaskToDOM(task);
+            this.tasks.push(task);
+            this.saveTasks();
+            this.renderTask(task);
 
-            taskDateInput.value = '';
-            taskTimeInput.value = '';
-            taskTextInput.value = '';
+            // Clear input fields after adding a task
+            document.getElementById("task-date").value = '';
+            document.getElementById("task-time").value = '';
+            document.getElementById("task-text").value = '';
         } else {
-            alert("Please fill in all fields.");
+            alert("Please fill in all the details for the task.");
         }
-    });
+    }
 
-    loadTasksFromLocalStorage();
-});
+    renderTask(task) {
+        const taskContainer = document.createElement("div");
+        taskContainer.className = `task${task.completed ? " completed" : ""}`;
+        taskContainer.innerHTML = `
+            <span>${task.date} ${task.time} - ${task.text}</span>
+            <button class="delete">X</button>
+        `;
+
+        taskContainer.querySelector("span").addEventListener("click", () => this.toggleTaskCompletion(task));
+        taskContainer.querySelector(".delete").addEventListener("click", (e) => this.deleteTask(e, task));
+
+        document.getElementById("tasks").appendChild(taskContainer);
+    }
+
+    toggleTaskCompletion(task) {
+        task.completed = !task.completed;
+        this.saveTasks();
+        this.refreshTasks();
+    }
+
+    deleteTask(event, taskToDelete) {
+        event.target.parentElement.remove();
+        this.tasks = this.tasks.filter(task => task !== taskToDelete);
+        this.saveTasks();
+    }
+
+    refreshTasks() {
+        const tasksElement = document.getElementById("tasks");
+        tasksElement.innerHTML = ''; // Clear current tasks
+        this.loadTasks(); // Reload and re-render tasks
+    }
+
+    toggleTheme() {
+        const body = document.body;
+        body.setAttribute("data-theme", body.getAttribute("data-theme") === "dark" ? "light" : "dark");
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => new TaskManager());
 
